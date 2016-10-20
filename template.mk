@@ -76,7 +76,7 @@ $(INSTALLED_HDRS):	../include/%:	%
 installhdrs: $(INSTALLED_HDRS)
 
 .cpp.o:
-	$(COMPILE.cc) -I../include $<
+	$(COMPILE.cc) -g -I../include $<
 
 .c.o:
 	$(COMPILE.c) -I../include $<
