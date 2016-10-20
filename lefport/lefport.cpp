@@ -300,8 +300,8 @@ void lefVia(lefiVia *via) {
         fprintf(fout, ";\n");
     }
     if (via->lefiVia::hasProperties()) {
-        fprintf(fout, "  PROPERTY ");
         for (i = 0; i < via->lefiVia::numProperties(); i++) {
+	  fprintf(fout, "  PROPERTY ");
             fprintf(fout, "%s ", via->lefiVia::propName(i));
             if (via->lefiVia::propIsNumber(i))
                 fprintf(fout, "%g ", via->lefiVia::propNumber(i));
@@ -330,8 +330,8 @@ void lefVia(lefiVia *via) {
                 fprintf(fout, "NUMBER ");
                 break;
             }
-        }
         fprintf(fout, ";\n");
+        }
     }
     if (via->lefiVia::hasResistance())
         fprintf(fout, "  RESISTANCE %g ;\n", via->lefiVia::resistance());
@@ -1437,8 +1437,8 @@ int layerCB(lefrCallbackType_e c, lefiLayer* layer, lefiUserData ud) {
 
   propNum = layer->lefiLayer::numProps();
   if (propNum > 0) {
-     fprintf(fout, "  PROPERTY ");
      for (i = 0; i < propNum; i++) {
+       fprintf(fout, "  PROPERTY ");
         // value can either be a string or number
         fprintf(fout, "%s ", layer->lefiLayer::propName(i));
         if (layer->lefiLayer::propIsNumber(i))
@@ -1458,8 +1458,8 @@ int layerCB(lefrCallbackType_e c, lefiLayer* layer, lefiUserData ud) {
            case 'N': fprintf(fout, "NUMBER ");
                      break;
         } 
-     }
      fprintf(fout, ";\n");
+     }
   }
   if (layer->lefiLayer::hasDiagMinEdgeLength())
      fprintf(fout, "  DIAGMINEDGELENGTH %g ;\n",
@@ -1537,7 +1537,7 @@ int macroCB(lefrCallbackType_e c, lefiMacro* macro, lefiUserData ud) {
   if (macro->lefiMacro::hasSource())
      fprintf(fout, "  SOURCE %s ;\n", macro->lefiMacro::source());
   if (macro->lefiMacro::hasOrigin())
-     fprintf(fout, "  ORIGIN ( %g %g ) ;\n", macro->lefiMacro::originX(),
+     fprintf(fout, "  ORIGIN %g %g ;\n", macro->lefiMacro::originX(),
              macro->lefiMacro::originY());
   if (macro->lefiMacro::hasForeign()) {
      for (i = 0; i < macro->lefiMacro::numForeigns(); i++) {
@@ -1604,17 +1604,17 @@ int macroCB(lefrCallbackType_e c, lefiMacro* macro, lefiUserData ud) {
      fprintf(fout, "  POWER %g ;\n", macro->lefiMacro::power());
   propNum = macro->lefiMacro::numProperties();
   if (propNum > 0) {
-     fprintf(fout, "  PROPERTY ");
      for (i = 0; i < propNum; i++) {
+     fprintf(fout, "  PROPERTY ");
         // value can either be a string or number
         if (macro->lefiMacro::propValue(i)) {
-           fprintf(fout, "%s %s ", macro->lefiMacro::propName(i),
+           fprintf(fout, "%s \"%s\" ;\n", macro->lefiMacro::propName(i),
                    macro->lefiMacro::propValue(i));
         }
         else
-           fprintf(fout, "%s %g ", macro->lefiMacro::propName(i),
+           fprintf(fout, "%s %g ;\n", macro->lefiMacro::propName(i),
                    macro->lefiMacro::propNum(i));
-
+	/*
         switch (macro->lefiMacro::propType(i)) {
            case 'R': fprintf(fout, "REAL ");
                      break;
@@ -1627,8 +1627,8 @@ int macroCB(lefrCallbackType_e c, lefiMacro* macro, lefiUserData ud) {
            case 'N': fprintf(fout, "NUMBER ");
                      break;
         } 
+	*/
      }
-     fprintf(fout, ";\n");
   }
   return 0;
 }
@@ -1725,8 +1725,8 @@ int nonDefaultCB(lefrCallbackType_e c, lefiNonDefault* def, lefiUserData ud) {
 
   // handle property in nondefaultrule
   if (def->lefiNonDefault::numProps() > 0) {
-     fprintf(fout, "   PROPERTY ");
      for (i = 0; i < def->lefiNonDefault::numProps(); i++) {
+       fprintf(fout, "   PROPERTY ");
         fprintf(fout, "%s ", def->lefiNonDefault::propName(i));
         if (def->lefiNonDefault::propIsNumber(i))
             fprintf(fout, "%g ", def->lefiNonDefault::propNumber(i));   
@@ -1744,8 +1744,8 @@ int nonDefaultCB(lefrCallbackType_e c, lefiNonDefault* def, lefiUserData ud) {
             case 'N': fprintf(fout, "NUMBER ");
                       break;
         }
-     }
      fprintf(fout, ";\n");
+     }
   }
   fprintf(fout, "END %s ;\n", def->lefiNonDefault::name());
 
@@ -1912,7 +1912,7 @@ int propDefCB(lefrCallbackType_e c, lefiProp* prop, lefiUserData ud) {
              prop->lefiProp::right());
   if (prop->lefiProp::hasString())
      fprintf(fout, " %s", prop->lefiProp::string());
-  fprintf(fout, "\n");
+  fprintf(fout, " ;\n");
   return 0;
 }
 
@@ -2155,8 +2155,8 @@ int viaRuleCB(lefrCallbackType_e c, lefiViaRule* viaRule, lefiUserData ud) {
      }
   }
   if (viaRule->lefiViaRule::numProps() > 0) {
-     fprintf(fout, "  PROPERTY ");
      for (i = 0; i < viaRule->lefiViaRule::numProps(); i++) {
+     fprintf(fout, "  PROPERTY ");
         fprintf(fout, "%s ", viaRule->lefiViaRule::propName(i));
         if (viaRule->lefiViaRule::propValue(i))
            fprintf(fout, "%s ", viaRule->lefiViaRule::propValue(i));
@@ -2172,8 +2172,8 @@ int viaRuleCB(lefrCallbackType_e c, lefiViaRule* viaRule, lefiUserData ud) {
            case 'N': fprintf(fout, "NUMBER ");
                      break;
         } 
-     }
      fprintf(fout, ";\n");
+     }
   }
   fprintf(fout, "END %s\n", viaRule->lefiViaRule::name());
   return 0;

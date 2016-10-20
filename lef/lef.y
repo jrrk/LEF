@@ -6353,7 +6353,7 @@ prop_stmt:
     T_STRING prop_define ';'
     { 
       if (lefCallbacks->PropCbk) {
-        lefData->lefrProp.setPropType("pin", $3);
+        lefData->lefrProp.setPropType("PIN", $3);
         CALLBACK(lefCallbacks->PropCbk, lefrPropCbkType, &lefData->lefrProp);
       }
       lefSettings->lefProps.lefrPinProp.setPropType($3, lefData->lefPropDefType);
@@ -6363,7 +6363,7 @@ prop_stmt:
     T_STRING prop_define ';'
     { 
       if (lefCallbacks->PropCbk) {
-        lefData->lefrProp.setPropType("macro", $3);
+        lefData->lefrProp.setPropType("MACRO", $3);
         CALLBACK(lefCallbacks->PropCbk, lefrPropCbkType, &lefData->lefrProp);
       }
       lefSettings->lefProps.lefrMacroProp.setPropType($3, lefData->lefPropDefType);
@@ -6372,7 +6372,7 @@ prop_stmt:
     T_STRING prop_define ';'
     { 
       if (lefCallbacks->PropCbk) {
-        lefData->lefrProp.setPropType("via", $3);
+        lefData->lefrProp.setPropType("VIA", $3);
         CALLBACK(lefCallbacks->PropCbk, lefrPropCbkType, &lefData->lefrProp);
       }
       lefSettings->lefProps.lefrViaProp.setPropType($3, lefData->lefPropDefType);
@@ -6381,7 +6381,7 @@ prop_stmt:
     T_STRING prop_define ';'
     { 
       if (lefCallbacks->PropCbk) {
-        lefData->lefrProp.setPropType("viarule", $3);
+        lefData->lefrProp.setPropType("VIARULE", $3);
         CALLBACK(lefCallbacks->PropCbk, lefrPropCbkType, &lefData->lefrProp);
       }
       lefSettings->lefProps.lefrViaRuleProp.setPropType($3, lefData->lefPropDefType);
@@ -6390,7 +6390,7 @@ prop_stmt:
     T_STRING prop_define ';'
     { 
       if (lefCallbacks->PropCbk) {
-        lefData->lefrProp.setPropType("layer", $3);
+        lefData->lefrProp.setPropType("LAYER", $3);
         CALLBACK(lefCallbacks->PropCbk, lefrPropCbkType, &lefData->lefrProp);
       }
       lefSettings->lefProps.lefrLayerProp.setPropType($3, lefData->lefPropDefType);
@@ -6399,7 +6399,7 @@ prop_stmt:
     T_STRING prop_define ';'
     { 
       if (lefCallbacks->PropCbk) {
-        lefData->lefrProp.setPropType("nondefaultrule", $3);
+        lefData->lefrProp.setPropType("NONDEFAULTRULE", $3);
         CALLBACK(lefCallbacks->PropCbk, lefrPropCbkType, &lefData->lefrProp);
       }
       lefSettings->lefProps.lefrNondefProp.setPropType($3, lefData->lefPropDefType);
