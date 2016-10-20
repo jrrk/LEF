@@ -35,6 +35,7 @@
 #include <string.h>
 #include <iostream>
 #include <stdlib.h>
+#include <assert.h>
 #include <math.h>
 
 #ifndef WIN32
@@ -1484,6 +1485,7 @@ int macroBeginCB(lefrCallbackType_e c, const char* macroName, lefiUserData ud) {
   checkType(c);
   // if ((long)ud != userData) dataError();
   int status = lefwStartMacro(macroName);
+  CHECK_STATUS(status);
   return 0;
 }
 
@@ -1498,7 +1500,7 @@ int macroClassTypeCB(lefrCallbackType_e c, const char* macroClassType,
                      lefiUserData ud) {
   checkType(c);
   // if ((long)ud != userData) dataError();
-  fprintf(fout, "CLASS %s ;\n",  macroClassType);
+  // fprintf(fout, "CLASS %s ;\n",  macroClassType);
   return 0;
 }
 
@@ -1506,7 +1508,7 @@ int macroOriginCB(lefrCallbackType_e c, lefiNum macroNum,
                      lefiUserData ud) {
   checkType(c);
   // if ((long)ud != userData) dataError();
-  fprintf(fout, "  ORIGIN %g %g ;\n", macroNum.x, macroNum.y);
+  //  fprintf(fout, "  ORIGIN %g %g ;\n", macroNum.x, macroNum.y);
   return 0;
 }
 
@@ -1514,7 +1516,7 @@ int macroSizeCB(lefrCallbackType_e c, lefiNum macroNum,
                      lefiUserData ud) {
   checkType(c);
   // if ((long)ud != userData) dataError();
-  fprintf(fout, "  SIZE %g BY %g ;\n", macroNum.x, macroNum.y);
+  //  fprintf(fout, "  SIZE %g BY %g ;\n", macroNum.x, macroNum.y);
   return 0;
 }
 
@@ -1534,6 +1536,24 @@ int macroCB(lefrCallbackType_e c, lefiMacro* macro, lefiUserData ud) {
      fprintf(fout, "  LEQ %s ;\n", macro->lefiMacro::LEQ());
   if (macro->lefiMacro::hasSource())
      fprintf(fout, "  SOURCE %s ;\n", macro->lefiMacro::source());
+  if (macro->lefiMacro::hasOrigin())
+     fprintf(fout, "  ORIGIN ( %g %g ) ;\n", macro->lefiMacro::originX(),
+             macro->lefiMacro::originY());
+  if (macro->lefiMacro::hasForeign()) {
+     for (i = 0; i < macro->lefiMacro::numForeigns(); i++) {
+        fprintf(fout, "  FOREIGN %s ", macro->lefiMacro::foreignName(i));
+        if (macro->lefiMacro::hasForeignPoint(i)) {
+           fprintf(fout, "( %g %g ) ", macro->lefiMacro::foreignX(i),
+                   macro->lefiMacro::foreignY(i));
+           if (macro->lefiMacro::hasForeignOrient(i))
+              fprintf(fout, "%s ", macro->lefiMacro::foreignOrientStr(i));
+        }
+        fprintf(fout, ";\n");
+     }
+  }
+  if (macro->lefiMacro::hasSize())
+     fprintf(fout, "  SIZE %g BY %g ;\n", macro->lefiMacro::sizeX(),
+             macro->lefiMacro::sizeY());
   if (macro->lefiMacro::hasXSymmetry()) {
      fprintf(fout, "  SYMMETRY X ");
      hasPrtSym = 1;
@@ -1580,25 +1600,6 @@ int macroCB(lefrCallbackType_e c, lefiMacro* macro, lefiUserData ud) {
        }
      }
   }
-  if (macro->lefiMacro::hasSize())
-     fprintf(fout, "  SIZE %g BY %g ;\n", macro->lefiMacro::sizeX(),
-             macro->lefiMacro::sizeY());
-
-  if (macro->lefiMacro::hasForeign()) {
-     for (i = 0; i < macro->lefiMacro::numForeigns(); i++) {
-        fprintf(fout, "  FOREIGN %s ", macro->lefiMacro::foreignName(i));
-        if (macro->lefiMacro::hasForeignPoint(i)) {
-           fprintf(fout, "( %g %g ) ", macro->lefiMacro::foreignX(i),
-                   macro->lefiMacro::foreignY(i));
-           if (macro->lefiMacro::hasForeignOrient(i))
-              fprintf(fout, "%s ", macro->lefiMacro::foreignOrientStr(i));
-        }
-        fprintf(fout, ";\n");
-     }
-  }
-  if (macro->lefiMacro::hasOrigin())
-     fprintf(fout, "  ORIGIN ( %g %g ) ;\n", macro->lefiMacro::originX(),
-             macro->lefiMacro::originY());
   if (macro->lefiMacro::hasPower())
      fprintf(fout, "  POWER %g ;\n", macro->lefiMacro::power());
   propNum = macro->lefiMacro::numProperties();
@@ -1629,14 +1630,6 @@ int macroCB(lefrCallbackType_e c, lefiMacro* macro, lefiUserData ud) {
      }
      fprintf(fout, ";\n");
   }
-  //fprintf(fout, "END %s\n", macro->lefiMacro::name());
-  return 0;
-}
-
-int macroEndCB(lefrCallbackType_e c, const char* macroName, lefiUserData ud) {
-  checkType(c);
-  // if ((long)ud != userData) dataError();
-  fprintf(fout, "END %s\n", macroName);
   return 0;
 }
 
@@ -1772,253 +1765,17 @@ int obstructionCB(lefrCallbackType_e c, lefiObstruction* obs,
   return 0;
 }
 
+typedef struct {
+  const char *name, *dir, *use;
+  int hasdir, hasuse;
+} pin_t;
+
+pin_t pinarray[256];
+unsigned macpins = 0;
+
 int pinCB(lefrCallbackType_e c, lefiPin* pin, lefiUserData ud) {
-  int                  numPorts, i, j;
-  lefiGeometries*      geometry;
-  lefiPinAntennaModel* aModel;
- 
   checkType(c);
   // if ((long)ud != userData) dataError();
-  int status = lefwStartMacroPin(pin->lefiPin::name());
-  CHECK_STATUS(status);
-  if (pin->lefiPin::hasForeign()) {
-     for (i = 0; i < pin->lefiPin::numForeigns(); i++) {
-        if (pin->lefiPin::hasForeignOrient(i))
-           fprintf(fout, "    FOREIGN %s STRUCTURE ( %g %g ) %s ;\n",
-                   pin->lefiPin::foreignName(i), pin->lefiPin::foreignX(i),
-                   pin->lefiPin::foreignY(i),
-                   pin->lefiPin::foreignOrientStr(i));
-        else if (pin->lefiPin::hasForeignPoint(i))
-           fprintf(fout, "    FOREIGN %s STRUCTURE ( %g %g ) ;\n",
-                   pin->lefiPin::foreignName(i), pin->lefiPin::foreignX(i),
-                   pin->lefiPin::foreignY(i));
-        else
-           fprintf(fout, "    FOREIGN %s ;\n", pin->lefiPin::foreignName(i));
-     }
-  }
-  if (pin->lefiPin::hasLEQ())
-     fprintf(fout, "    LEQ %s ;\n", pin->lefiPin::LEQ());
-  if (pin->lefiPin::hasDirection())
-     fprintf(fout, "    DIRECTION %s ;\n", pin->lefiPin::direction());
-  if (pin->lefiPin::hasUse())
-     fprintf(fout, "    USE %s ;\n", pin->lefiPin::use());
-  if (pin->lefiPin::hasShape())
-     fprintf(fout, "    SHAPE %s ;\n", pin->lefiPin::shape());
-  if (pin->lefiPin::hasMustjoin())
-     fprintf(fout, "    MUSTJOIN %s ;\n", pin->lefiPin::mustjoin());
-  if (pin->lefiPin::hasOutMargin())
-     fprintf(fout, "    OUTPUTNOISEMARGIN %g %g ;\n",
-             pin->lefiPin::outMarginHigh(), pin->lefiPin::outMarginLow());
-  if (pin->lefiPin::hasOutResistance())
-     fprintf(fout, "    OUTPUTRESISTANCE %g %g ;\n",
-             pin->lefiPin::outResistanceHigh(),
-             pin->lefiPin::outResistanceLow());
-  if (pin->lefiPin::hasInMargin())
-     fprintf(fout, "    INPUTNOISEMARGIN %g %g ;\n",
-             pin->lefiPin::inMarginHigh(), pin->lefiPin::inMarginLow());
-  if (pin->lefiPin::hasPower())
-     fprintf(fout, "    POWER %g ;\n", pin->lefiPin::power());
-  if (pin->lefiPin::hasLeakage())
-     fprintf(fout, "    LEAKAGE %g ;\n", pin->lefiPin::leakage());
-  if (pin->lefiPin::hasMaxload())
-     fprintf(fout, "    MAXLOAD %g ;\n", pin->lefiPin::maxload());
-  if (pin->lefiPin::hasCapacitance())
-     fprintf(fout, "    CAPACITANCE %g ;\n", pin->lefiPin::capacitance());
-  if (pin->lefiPin::hasResistance())
-     fprintf(fout, "    RESISTANCE %g ;\n", pin->lefiPin::resistance());
-  if (pin->lefiPin::hasPulldownres())
-     fprintf(fout, "    PULLDOWNRES %g ;\n", pin->lefiPin::pulldownres());
-  if (pin->lefiPin::hasTieoffr())
-     fprintf(fout, "    TIEOFFR %g ;\n", pin->lefiPin::tieoffr());
-  if (pin->lefiPin::hasVHI())
-     fprintf(fout, "    VHI %g ;\n", pin->lefiPin::VHI());
-  if (pin->lefiPin::hasVLO())
-     fprintf(fout, "    VLO %g ;\n", pin->lefiPin::VLO());
-  if (pin->lefiPin::hasRiseVoltage())
-     fprintf(fout, "    RISEVOLTAGETHRESHOLD %g ;\n",
-             pin->lefiPin::riseVoltage());
-  if (pin->lefiPin::hasFallVoltage())
-     fprintf(fout, "    FALLVOLTAGETHRESHOLD %g ;\n",
-             pin->lefiPin::fallVoltage());
-  if (pin->lefiPin::hasRiseThresh())
-     fprintf(fout, "    RISETHRESH %g ;\n", pin->lefiPin::riseThresh());
-  if (pin->lefiPin::hasFallThresh())
-     fprintf(fout, "    FALLTHRESH %g ;\n", pin->lefiPin::fallThresh());
-  if (pin->lefiPin::hasRiseSatcur())
-     fprintf(fout, "    RISESATCUR %g ;\n", pin->lefiPin::riseSatcur());
-  if (pin->lefiPin::hasFallSatcur())
-     fprintf(fout, "    FALLSATCUR %g ;\n", pin->lefiPin::fallSatcur());
-  if (pin->lefiPin::hasRiseSlewLimit())
-     fprintf(fout, "    RISESLEWLIMIT %g ;\n", pin->lefiPin::riseSlewLimit());
-  if (pin->lefiPin::hasFallSlewLimit())
-     fprintf(fout, "    FALLSLEWLIMIT %g ;\n", pin->lefiPin::fallSlewLimit());
-  if (pin->lefiPin::hasCurrentSource())
-     fprintf(fout, "    CURRENTSOURCE %s ;\n", pin->lefiPin::currentSource());
-  if (pin->lefiPin::hasTables())
-     fprintf(fout, "    IV_TABLES %s %s ;\n", pin->lefiPin::tableHighName(),
-             pin->lefiPin::tableLowName());
-  if (pin->lefiPin::hasTaperRule())
-     fprintf(fout, "    TAPERRULE %s ;\n", pin->lefiPin::taperRule());
-  if (pin->lefiPin::hasNetExpr())
-     fprintf(fout, "    NETEXPR \"%s\" ;\n", pin->lefiPin::netExpr());
-  if (pin->lefiPin::hasSupplySensitivity())
-     fprintf(fout, "    SUPPLYSENSITIVITY %s ;\n",
-             pin->lefiPin::supplySensitivity());
-  if (pin->lefiPin::hasGroundSensitivity())
-     fprintf(fout, "    GROUNDSENSITIVITY %s ;\n",
-             pin->lefiPin::groundSensitivity());
-  if (pin->lefiPin::hasAntennaSize()) {
-     for (i = 0; i < pin->lefiPin::numAntennaSize(); i++) {
-        fprintf(fout, "    ANTENNASIZE %g ", pin->lefiPin::antennaSize(i));
-        if (pin->lefiPin::antennaSizeLayer(i))
-           fprintf(fout, "LAYER %s ", pin->lefiPin::antennaSizeLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-  if (pin->lefiPin::hasAntennaMetalArea()) {
-     for (i = 0; i < pin->lefiPin::numAntennaMetalArea(); i++) {
-        fprintf(fout, "    ANTENNAMETALAREA %g ",
-           pin->lefiPin::antennaMetalArea(i));
-        if (pin->lefiPin::antennaMetalAreaLayer(i))
-           fprintf(fout, "LAYER %s ", pin->lefiPin::antennaMetalAreaLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-  if (pin->lefiPin::hasAntennaMetalLength()) {
-     for (i = 0; i < pin->lefiPin::numAntennaMetalLength(); i++) {
-        fprintf(fout, "    ANTENNAMETALLENGTH %g ",
-           pin->lefiPin::antennaMetalLength(i));
-        if (pin->lefiPin::antennaMetalLengthLayer(i))
-           fprintf(fout, "LAYER %s ", pin->lefiPin::antennaMetalLengthLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-
-  if (pin->lefiPin::hasAntennaPartialMetalArea()) {
-     for (i = 0; i < pin->lefiPin::numAntennaPartialMetalArea(); i++) {
-        fprintf(fout, "    ANTENNAPARTIALMETALAREA %g ",
-                pin->lefiPin::antennaPartialMetalArea(i));
-        if (pin->lefiPin::antennaPartialMetalAreaLayer(i))
-           fprintf(fout, "LAYER %s ",
-                   pin->lefiPin::antennaPartialMetalAreaLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-
-  if (pin->lefiPin::hasAntennaPartialMetalSideArea()) {
-     for (i = 0; i < pin->lefiPin::numAntennaPartialMetalSideArea(); i++) {
-        fprintf(fout, "    ANTENNAPARTIALMETALSIDEAREA %g ",
-                pin->lefiPin::antennaPartialMetalSideArea(i));
-        if (pin->lefiPin::antennaPartialMetalSideAreaLayer(i))
-           fprintf(fout, "LAYER %s ",
-                   pin->lefiPin::antennaPartialMetalSideAreaLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-
-  if (pin->lefiPin::hasAntennaPartialCutArea()) {
-     for (i = 0; i < pin->lefiPin::numAntennaPartialCutArea(); i++) {
-        fprintf(fout, "    ANTENNAPARTIALCUTAREA %g ",
-                pin->lefiPin::antennaPartialCutArea(i));
-        if (pin->lefiPin::antennaPartialCutAreaLayer(i))
-           fprintf(fout, "LAYER %s ",
-                   pin->lefiPin::antennaPartialCutAreaLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-
-  if (pin->lefiPin::hasAntennaDiffArea()) {
-     for (i = 0; i < pin->lefiPin::numAntennaDiffArea(); i++) {
-        fprintf(fout, "    ANTENNADIFFAREA %g ",
-                pin->lefiPin::antennaDiffArea(i));
-        if (pin->lefiPin::antennaDiffAreaLayer(i))
-           fprintf(fout, "LAYER %s ", pin->lefiPin::antennaDiffAreaLayer(i));
-        fprintf(fout, ";\n");
-     }
-  }
-
-  for (j = 0; j < pin->lefiPin::numAntennaModel(); j++) {
-     aModel = pin->lefiPin::antennaModel(j); 
-    
-     fprintf(fout, "    ANTENNAMODEL %s ;\n",
-             aModel->lefiPinAntennaModel::antennaOxide());
-
-     if (aModel->lefiPinAntennaModel::hasAntennaGateArea()) {
-        for (i = 0; i < aModel->lefiPinAntennaModel::numAntennaGateArea(); i++)
-        {
-           fprintf(fout, "    ANTENNAGATEAREA %g ",
-                   aModel->lefiPinAntennaModel::antennaGateArea(i));
-           if (aModel->lefiPinAntennaModel::antennaGateAreaLayer(i))
-              fprintf(fout, "LAYER %s ",
-                      aModel->lefiPinAntennaModel::antennaGateAreaLayer(i));
-           fprintf(fout, ";\n");
-        }
-     }
-
-     if (aModel->lefiPinAntennaModel::hasAntennaMaxAreaCar()) {
-        for (i = 0; i < aModel->lefiPinAntennaModel::numAntennaMaxAreaCar();
-           i++) {
-           fprintf(fout, "    ANTENNAMAXAREACAR %g ",
-                   aModel->lefiPinAntennaModel::antennaMaxAreaCar(i));
-           if (aModel->lefiPinAntennaModel::antennaMaxAreaCarLayer(i))
-              fprintf(fout, "LAYER %s ",
-                   aModel->lefiPinAntennaModel::antennaMaxAreaCarLayer(i));
-           fprintf(fout, ";\n");
-        }
-     }
-
-     if (aModel->lefiPinAntennaModel::hasAntennaMaxSideAreaCar()) {
-        for (i = 0; i < aModel->lefiPinAntennaModel::numAntennaMaxSideAreaCar();
-           i++) {
-           fprintf(fout, "    ANTENNAMAXSIDEAREACAR %g ",
-                   aModel->lefiPinAntennaModel::antennaMaxSideAreaCar(i));
-           if (aModel->lefiPinAntennaModel::antennaMaxSideAreaCarLayer(i))
-              fprintf(fout, "LAYER %s ",
-                   aModel->lefiPinAntennaModel::antennaMaxSideAreaCarLayer(i));
-           fprintf(fout, ";\n");
-        }
-     }
-
-     if (aModel->lefiPinAntennaModel::hasAntennaMaxCutCar()) {
-        for (i = 0; i < aModel->lefiPinAntennaModel::numAntennaMaxCutCar(); i++)
-        {
-           fprintf(fout, "    ANTENNAMAXCUTCAR %g ",
-                   aModel->lefiPinAntennaModel::antennaMaxCutCar(i));
-           if (aModel->lefiPinAntennaModel::antennaMaxCutCarLayer(i))
-              fprintf(fout, "LAYER %s ",
-                   aModel->lefiPinAntennaModel::antennaMaxCutCarLayer(i));
-           fprintf(fout, ";\n");
-        }
-     }
-  }
-
-  if (pin->lefiPin::numProperties() > 0) {
-     fprintf(fout, "    PROPERTY ");
-     for (i = 0; i < pin->lefiPin::numProperties(); i++) {
-        // value can either be a string or number
-        if (pin->lefiPin::propValue(i)) {
-           fprintf(fout, "%s %s ", pin->lefiPin::propName(i),
-                   pin->lefiPin::propValue(i));
-        }
-        else
-           fprintf(fout, "%s %g ", pin->lefiPin::propName(i),
-                   pin->lefiPin::propNum(i));
-        switch (pin->lefiPin::propType(i)) {
-           case 'R': fprintf(fout, "REAL ");
-                     break;
-           case 'I': fprintf(fout, "INTEGER ");
-                     break;
-           case 'S': fprintf(fout, "STRING ");
-                     break;
-           case 'Q': fprintf(fout, "QUOTESTRING ");
-                     break;
-           case 'N': fprintf(fout, "NUMBER ");
-                     break;
-        } 
-     }
-     fprintf(fout, ";\n");
-  }
-  
   if (getenv("CAPTURE_TEMPLATE"))
     {
       static FILE *tempf;
@@ -2026,13 +1783,13 @@ int pinCB(lefrCallbackType_e c, lefiPin* pin, lefiUserData ud) {
       static int pincnt = 0;
       const char *pnam = pin->lefiPin::name();;
       if (!pincnt++) tempf = fopen(getenv("CAPTURE_TEMPLATE"), "w");
-      numPorts = pin->lefiPin::numPorts();
-      for (i = 0; i < numPorts; i++) {
+      int numPorts = pin->lefiPin::numPorts();
+      for (int i = 0; i < numPorts; i++) {
 	 fprintf(fout,"    PORT\n");
-	 geometry = pin->lefiPin::port(i);
+	 lefiGeometries* geometry = pin->lefiPin::port(i);
 	 prtGeometry(geometry);
-	 int i, numItems = geometry->lefiGeometries::numItems();
-	 for (i = 0; i < numItems; i++) {
+	 int numItems = geometry->lefiGeometries::numItems();
+	 for (int i = 0; i < numItems; i++) {
 	   lefiGeomRect        *rect;
 	   switch (geometry->lefiGeometries::itemType(i)) {
 	   case lefiGeomLayerE:
@@ -2051,29 +1808,55 @@ int pinCB(lefrCallbackType_e c, lefiPin* pin, lefiUserData ud) {
 	 fprintf(fout, "    END\n");
       }
     }
-  else
-    {
-      // MACRO - PIN - PORT
-      const char *olayer = "";
-      const char *pnam = pin->lefiPin::name();;
-      status = lefwStartMacroPinPort(NULL);
-      CHECK_STATUS(status);
-      for (i = 0; i < sizeof(players)/sizeof(*players); i++) if (!strcmp(players[i].pnam, pnam)) {
-	  if (strcmp(olayer, players[i].layer))
-	    {
-	      status = lefwMacroPinPortLayer(players[i].layer, 0);
-	      CHECK_STATUS(status);
-	    }
+  pinarray[macpins].name = strdup(pin->lefiPin::name());
+  pinarray[macpins].hasdir = pin->lefiPin::hasDirection();
+  pinarray[macpins].dir = strdup(pin->lefiPin::direction());
+  pinarray[macpins].hasuse = pin->lefiPin::hasUse();
+  pinarray[macpins].use = strdup(pin->lefiPin::use());
+  assert(++macpins < sizeof(pinarray)/sizeof(*pinarray));
+  return 0;
+}
+
+int pindump(pin_t* pin)
+{
+  int                  numPorts, i, j;
+  lefiGeometries*      geometry;
+  lefiPinAntennaModel* aModel;
+ 
+  int status = lefwStartMacroPin(pin->name);
+  CHECK_STATUS(status);
+  if (pin->hasdir) fprintf(fout, "    DIRECTION %s ;\n", pin->dir);
+  if (pin->hasuse) fprintf(fout, "    USE %s ;\n", pin->use);
+  // MACRO - PIN - PORT
+  const char *olayer = "";
+  const char *pnam = pin->name;
+  status = lefwStartMacroPinPort(NULL);
+  CHECK_STATUS(status);
+  for (i = 0; i < sizeof(players)/sizeof(*players); i++) if (!strcmp(players[i].pnam, pnam)) {
+      if (strcmp(olayer, players[i].layer))
+	{
+	  status = lefwMacroPinPortLayer(players[i].layer, 0);
+	  CHECK_STATUS(status);
+	}
       status = lefwMacroPinPortLayerRect(players[i].x1, players[i].y1, players[i].x2, players[i].y2, 0, 0, 0, 0);
       CHECK_STATUS(status);
       olayer = players[i].layer;
-      }
-      status = lefwEndMacroPinPort();
-      CHECK_STATUS(status); 
     }
-  status = lefwEndMacroPin(pin->lefiPin::name());
+  status = lefwEndMacroPinPort();
+  CHECK_STATUS(status); 
+  status = lefwEndMacroPin(pin->name);
   CHECK_STATUS(status);
   return 0;  
+}
+
+int macroEndCB(lefrCallbackType_e c, const char* macroName, lefiUserData ud) {
+  checkType(c);
+  // if ((long)ud != userData) dataError();
+  for (int i = 0; i < macpins; i++) pindump(pinarray+i);
+  int status = lefwEndMacro(macroName);
+  CHECK_STATUS(status);
+  macpins = 0;
+  return 0;
 }
 
 int densityCB(lefrCallbackType_e c, lefiDensity* density,
